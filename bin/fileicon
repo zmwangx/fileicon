@@ -195,11 +195,20 @@ setCustomIcon() {
 
   # Create a temp. dir. and a temp. copy of the image file inside it.
   tmpDir=$(/usr/bin/mktemp -d -t "$kTHIS_NAME") || return
-  sourceFileWithResourceFork=$tmpDir/${imgFile##*/}
-  cp "$imgFile" "$sourceFileWithResourceFork" || return
-  # Assign an icon representation of the image file to the image file itself.
-  # This creates the resource fork we'll copy.
-  sips -i "$sourceFileWithResourceFork" >/dev/null || return
+
+  if command -v seticon &>/dev/null; then
+      sourceFileWithResourceFork=$tmpDir/${imgFile##*/}.icns
+      # Convert image to icns
+      sips -s format icns --out "$sourceFileWithResourceFork" "$imgFile" &>/dev/null || return
+      # Use seticon to set icns data to its own resource fork
+      seticon -d "$sourceFileWithResourceFork" "$sourceFileWithResourceFork" || return
+  else
+      sourceFileWithResourceFork=$tmpDir/${imgFile##*/}
+      cp "$imgFile" "$sourceFileWithResourceFork" || return
+      # Assign an icon representation of the image file to the image file itself.
+      # This creates the resource fork we'll copy.
+      sips -i "$sourceFileWithResourceFork" >/dev/null || return
+  fi
 
   # Make sure a resource fork with icons was actually created.
   hasIconsResource "$sourceFileWithResourceFork" || { echo "Failed to create resource fork with icons. Typically, this means that the input file is not a (valid) image file: $sourceFileWithResourceFork" >&2; return 1; }
